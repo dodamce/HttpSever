@@ -82,6 +82,10 @@ public:
         }
         return sever;
     }
+    int GetLinstenSocket()
+    {
+        return listen_socket;
+    }
 };
 
 TcpSever *TcpSever::sever = nullptr;
