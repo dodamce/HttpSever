@@ -1,6 +1,7 @@
-#include "TcpSever.hpp"
+#include "HttpSever.hpp"
 #include <iostream>
 #include <string>
+#include <memory>
 
 void Usage(std::string proc)
 {
@@ -14,7 +15,8 @@ int main(int argc, char const *argv[])
         Usage(argv[0]);
         exit(4);
     }
-    TcpSever *sever = TcpSever::GetInstance(atoi(argv[1]));
-    std::cout << "Hello Sever" << std::endl;
+    int port = atoi(argv[1]);
+    std::shared_ptr<HttpSever> sever(new HttpSever(port));
+    sever->Loop();
     return 0;
 }
