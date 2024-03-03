@@ -7,7 +7,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <pthread.h>
-#define PORT 8080
 #define BACKLOG 5
 // 封装套接字,单例模式
 class TcpSever
@@ -15,7 +14,7 @@ class TcpSever
 private:
     int port;
     int listen_socket;
-    TcpSever(int _port = PORT)
+    TcpSever(int _port)
     {
         port = _port;
         listen_socket = -1;
