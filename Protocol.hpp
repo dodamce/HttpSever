@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 #include "./log/log.hpp"
+#include <sstream>
 
 // 协议读取分析工作(每个线程工作任务)
 // 请求报文信息
@@ -16,6 +17,11 @@ struct HttpRequest
     std::vector<std::string> req_heads; // 请求报头
     std::string blank;                  // 空行
     std::string req_body;               // 请求正文
+
+    // 解析完毕后的数据
+    std::string method;  // 请求方法
+    std::string uri;     // 请求路径
+    std::string version; // HTTP版本
 };
 // 响应报文信息
 struct HttpResponse
@@ -33,12 +39,38 @@ private:
     HttpRequest request;
     HttpResponse response;
 
+    // 读取请求行
     void RecvRequestLine()
     {
         Util::readLine(sock, request.req_line);
+        request.req_line.resize(request.req_line.size() - 1); // 删除\n
+        // LOG(INFO, request.req_line);
     }
+    // 读取请求报头
     void RecvRequestHander()
     {
+        std::string line;
+        while (true)
+        {
+            line.clear();
+            Util::readLine(sock, line);
+            if (line == "\n")
+            {
+                request.blank = line;
+                break; // line==\n时读取到空行
+            }
+            line.resize(line.size() - 1); // 删除最后一个字符\n
+            request.req_heads.push_back(line);
+            // LOG(INFO, line);
+        }
+    }
+    // 解析请求头
+    void ParseRequestLine()
+    {
+        std::string &line = request.req_line;
+        std::stringstream str(line);
+        str >> request.method >> request.uri >> request.version;
+        // LOG(INFO, request.method + ":" + request.uri + ":" + request.version);
     }
 
 public:
@@ -53,9 +85,14 @@ public:
     // 读取请求
     void ReadRequest()
     {
+        RecvRequestLine();
+        RecvRequestHander();
     }
     // 解析请求
-    void ParseRequest() {}
+    void ParseRequest()
+    {
+        ParseRequestLine();
+    }
     // 构建响应
     void BuildRequest() {}
     // 发送响应
