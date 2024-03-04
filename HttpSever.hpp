@@ -1,6 +1,7 @@
 #pragma once
 #include "./TcpSever/TcpSever.hpp"
 #include "Protocol.hpp"
+#include "./log/log.hpp"
 #define PORT 8080
 
 class HttpSever
@@ -25,6 +26,7 @@ public:
     ~HttpSever() {}
     void Loop()
     {
+        LOG(INFO, "---http sever loop begin---");
         int listen_socket = tcp_sever->GetLinstenSocket();
         while (states != false)
         {
@@ -36,6 +38,7 @@ public:
                 // 套接字监听失败
                 continue;
             }
+            LOG(INFO, "get a new link");
             int *_sock = new int(sock);
             pthread_t tid = 0;
             pthread_create(&tid, nullptr, Entrance::HanderReq, _sock);

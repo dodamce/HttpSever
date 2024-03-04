@@ -6,6 +6,7 @@
 #include "./tool/Util.hpp"
 #include <string>
 #include <vector>
+#include "./log/log.hpp"
 
 // 协议读取分析工作(每个线程工作任务)
 // 请求报文信息
@@ -38,7 +39,6 @@ private:
     }
     void RecvRequestHander()
     {
-        
     }
 
 public:
@@ -68,6 +68,7 @@ public:
     // 处理HTTP请求
     static void *HanderReq(void *_sock)
     {
+        LOG(INFO, "http request hander begin");
         int sock = *(int *)_sock;
         delete (int *)_sock;
         EndPoint *endpoint = new EndPoint(sock);
@@ -76,6 +77,7 @@ public:
         endpoint->BuildRequest();
         endpoint->SendRequest();
         delete endpoint;
+        LOG(INFO, "http request hander end");
         return nullptr;
     }
 };

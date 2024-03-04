@@ -11,14 +11,13 @@ void Usage(std::string proc)
 
 int main(int argc, char const *argv[])
 {
-    LOG(INFO, "debug test");
-    // if (argc != 2)
-    // {
-    //     Usage(argv[0]);
-    //     exit(4);
-    // }
-    // int port = atoi(argv[1]);
-    // std::shared_ptr<HttpSever> sever(new HttpSever(port));
-    // sever->Loop();
+    if (argc != 2)
+    {
+        Usage(argv[0]);
+        exit(4);
+    }
+    int port = atoi(argv[1]);
+    std::shared_ptr<HttpSever> sever(new HttpSever(port));
+    sever->Loop();
     return 0;
 }

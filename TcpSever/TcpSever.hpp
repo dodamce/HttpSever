@@ -7,6 +7,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <pthread.h>
+#include "../log/log.hpp"
+#include <unistd.h>
 #define BACKLOG 5
 // 封装套接字,单例模式
 class TcpSever
@@ -28,8 +30,9 @@ private:
         listen_socket = socket(AF_INET, SOCK_STREAM, 0);
         if (listen_socket < 0)
         {
-            exit(1);
+            LOG(FATAL, "listen socket create error!");
         }
+        LOG(INFO, "listen socket create success");
         // 设置套接字复用
         int opt = 1;
         setsockopt(listen_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
@@ -44,8 +47,9 @@ private:
         sever.sin_addr.s_addr = INADDR_ANY; // 云服务器不能直接绑定公网ip
         if (bind(listen_socket, (struct sockaddr *)&sever, sizeof(sever)) < 0)
         {
-            exit(2);
+            LOG(FATAL, "bind error!");
         }
+        LOG(INFO, "bind listen socket success");
     }
     // 设置套接字为监听状态
     void Listen()
@@ -53,16 +57,24 @@ private:
 
         if (listen(listen_socket, BACKLOG) < 0)
         {
-            exit(3);
+            LOG(FATAL, "listen error!");
         }
+        LOG(INFO, "socket listen success");
     }
     void InitSever()
     {
         Socket();
         Bind();
         Listen();
+        LOG(INFO, "tcp sever init success");
     }
-    ~TcpSever() {}
+    ~TcpSever()
+    {
+        if (listen_socket >= 0)
+        {
+            close(listen_socket);
+        }
+    }
 
 public:
     static TcpSever *sever;
