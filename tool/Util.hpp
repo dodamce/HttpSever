@@ -6,6 +6,17 @@
 class Util
 {
 public:
+    // 时间戳转化为时间信息
+    static std::string convertTimeStamp2TimeStr(time_t timeStamp)
+    {
+        struct tm *timeinfo = nullptr;
+        char buffer[80];
+        timeinfo = localtime(&timeStamp);
+        strftime(buffer, 80, "%Y-%m-%d %H:%M:%S", timeinfo);
+        // printf("%s\n", buffer);
+        return std::string(buffer);
+    }
+    // 套接字读取流中的一行
     static int readLine(int sock, std::string &out)
     {
         char ch = 0;
