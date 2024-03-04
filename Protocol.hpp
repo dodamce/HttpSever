@@ -8,6 +8,9 @@
 #include <vector>
 #include "./log/log.hpp"
 #include <sstream>
+#include <unordered_map>
+
+#define SEP ": " // HTTP请求报文分隔符
 
 // 协议读取分析工作(每个线程工作任务)
 // 请求报文信息
@@ -19,9 +22,10 @@ struct HttpRequest
     std::string req_body;               // 请求正文
 
     // 解析完毕后的数据
-    std::string method;  // 请求方法
-    std::string uri;     // 请求路径
-    std::string version; // HTTP版本
+    std::string method;                                       // 请求方法
+    std::string uri;                                          // 请求路径
+    std::string version;                                      // HTTP版本
+    std::unordered_map<std::string, std::string> req_headMap; // 请求报头key value形式
 };
 // 响应报文信息
 struct HttpResponse
@@ -47,7 +51,7 @@ private:
         // LOG(INFO, request.req_line);
     }
     // 读取请求报头
-    void RecvRequestHander()
+    void RecvRequestHeads()
     {
         std::string line;
         while (true)
@@ -72,6 +76,20 @@ private:
         str >> request.method >> request.uri >> request.version;
         // LOG(INFO, request.method + ":" + request.uri + ":" + request.version);
     }
+    // 解析请求报头
+    void ParseRequestHeads()
+    {
+        for (auto &line : request.req_heads)
+        {
+            // HTTP 以: +空格分隔 请求报头的key value
+            std::string key;
+            std::string value;
+            if (Util::cutString(line, SEP, key, value) == true)
+            {
+                request.req_headMap.insert({key, value});
+            }
+        }
+    }
 
 public:
     EndPoint(int _sock)
@@ -86,12 +104,13 @@ public:
     void ReadRequest()
     {
         RecvRequestLine();
-        RecvRequestHander();
+        RecvRequestHeads();
     }
     // 解析请求
     void ParseRequest()
     {
         ParseRequestLine();
+        ParseRequestHeads();
     }
     // 构建响应
     void BuildRequest() {}

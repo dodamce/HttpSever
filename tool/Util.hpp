@@ -3,6 +3,7 @@
 #include <string>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <unordered_map>
 class Util
 {
 public:
@@ -52,5 +53,17 @@ public:
             }
         }
         return out.length();
+    }
+    // 切分字符串src,结果放到left，rigth上
+    static bool cutString(std::string &src, const std::string sep, std::string &left, std::string &right)
+    {
+        size_t pos = src.find(sep);
+        if (pos != std::string::npos)
+        {
+            left = src.substr(0, pos);
+            right = src.substr(pos + sep.length());
+            return true;
+        }
+        return false;
     }
 };
