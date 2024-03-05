@@ -14,6 +14,10 @@
 // HTTP响应状态码
 #define OK 200
 #define NOT_FOUND 404
+// WEB根目录
+#define WEB_ROOT "wwwroot"
+// 路径首页
+#define HOME_PAGE "index.html"
 
 // 协议读取分析工作(每个线程工作任务)
 // 请求报文信息
@@ -176,6 +180,14 @@ public:
                     request.path = request.uri;
                 }
             }
+            // 重新修改路径，让其指向WEB服务器根路径wwwroot/ 默认首页index.hmtl
+            request.path.insert(0, WEB_ROOT);
+            if (request.path[request.path.size() - 1] == '/')
+            {
+                // 路径以/结尾，默认访问这个路径的首页
+                request.path += HOME_PAGE;
+            }
+            // LOG(INFO, request.path);
         }
         else
         {
