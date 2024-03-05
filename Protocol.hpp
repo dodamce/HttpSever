@@ -26,6 +26,7 @@ struct HttpRequest
     std::string uri;                                          // 请求路径
     std::string version;                                      // HTTP版本
     std::unordered_map<std::string, std::string> req_headMap; // 请求报头key value形式
+    int content_length = 0;                                   // 请求正文长度
 };
 // 响应报文信息
 struct HttpResponse
@@ -90,6 +91,43 @@ private:
             }
         }
     }
+    // 是否需要读取正文
+    bool HaveReqBody()
+    {
+        // GET方法默认没有正文，POST方法考虑读取正文
+        if (request.method == "POST")
+        {
+            auto pos = request.req_headMap.find("Content-Length");
+            if (pos != request.req_headMap.end())
+            {
+                request.content_length = atoi(pos->second.c_str()); // 请求正文长度
+                return true;
+            }
+        }
+        return false;
+    }
+    // 读取正文
+    void RecvReqBody()
+    {
+        if (HaveReqBody() == true)
+        {
+            int length = request.content_length;
+            char ch = 0;
+            while (length > 0)
+            {
+                ssize_t size = recv(sock, &ch, 1, 0);
+                if (size > 0)
+                {
+                    request.req_body += ch;
+                    length -= 1;
+                }
+                else
+                {
+                    break; // 出错，先不考虑
+                }
+            }
+        }
+    }
 
 public:
     EndPoint(int _sock)
@@ -100,17 +138,15 @@ public:
     {
         close(sock);
     }
-    // 读取请求
+    // 读取，解析请求
     void ReadRequest()
     {
         RecvRequestLine();
         RecvRequestHeads();
-    }
-    // 解析请求
-    void ParseRequest()
-    {
         ParseRequestLine();
         ParseRequestHeads();
+        // 请求正文由Content-length决定
+        RecvReqBody();
     }
     // 构建响应
     void BuildRequest() {}
@@ -129,7 +165,6 @@ public:
         delete (int *)_sock;
         EndPoint *endpoint = new EndPoint(sock);
         endpoint->ReadRequest();
-        endpoint->ParseRequest();
         endpoint->BuildRequest();
         endpoint->SendRequest();
         delete endpoint;
