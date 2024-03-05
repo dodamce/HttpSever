@@ -11,6 +11,9 @@
 #include <unordered_map>
 
 #define SEP ": " // HTTP请求报文分隔符
+// HTTP响应状态码
+#define OK 200
+#define NOT_FOUND 404
 
 // 协议读取分析工作(每个线程工作任务)
 // 请求报文信息
@@ -23,10 +26,12 @@ struct HttpRequest
 
     // 解析完毕后的数据
     std::string method;                                       // 请求方法
-    std::string uri;                                          // 请求路径
+    std::string uri;                                          // 请求路径,可能带参数
     std::string version;                                      // HTTP版本
     std::unordered_map<std::string, std::string> req_headMap; // 请求报头key value形式
     int content_length = 0;                                   // 请求正文长度
+    std::string path;                                         // 请求资源路径
+    std::string parameter;                                    // GET请求携带的参数
 };
 // 响应报文信息
 struct HttpResponse
@@ -35,6 +40,8 @@ struct HttpResponse
     std::vector<std::string> res_heads; // 响应报头
     std::string blank;                  // 空行
     std::string res_body;               // 响应正文
+
+    int status_code = 0; // 响应状态码
 };
 // 对端业务逻辑类,读取请求，分析请求，构建响应。基本IO通信
 class EndPoint
@@ -149,7 +156,34 @@ public:
         RecvReqBody();
     }
     // 构建响应
-    void BuildRequest() {}
+    void BuildRequest()
+    {
+        // 只处理POST/GET请求
+        std::string &method = request.method;
+        if (method == "POST" || method == "GET")
+        {
+            // 判断GET方法上URL是否带参数
+            if (method == "GET")
+            {
+                if (request.uri.find("?") != std::string::npos)
+                {
+                    // 带参 切分字符串，左边为路径，右边为参数
+                    Util::cutString(request.uri, "?", request.path, request.parameter);
+                    // LOG(INFO, request.path + "------" + request.parameter);
+                }
+                else
+                {
+                    request.path = request.uri;
+                }
+            }
+        }
+        else
+        {
+            // 非法请求，构建错误响应报文
+            LOG(WARNING, "method is not right");
+            response.status_code = NOT_FOUND;
+        }
+    }
     // 发送响应
     void SendRequest() {}
 };
