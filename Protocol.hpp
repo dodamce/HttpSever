@@ -9,6 +9,7 @@
 #include "./log/log.hpp"
 #include <sstream>
 #include <unordered_map>
+#include <sys/stat.h>
 
 #define SEP ": " // HTTP请求报文分隔符
 // HTTP响应状态码
@@ -188,13 +189,39 @@ public:
                 request.path += HOME_PAGE;
             }
             // LOG(INFO, request.path);
+            // 判断文件路径是否存在
+            struct stat file_state;
+            if (stat(request.path.c_str(), &file_state) == 0)
+            {
+                // 文件存在,判断是否是路径
+                if (S_ISDIR(file_state.st_mode))
+                {
+                    // 请求路径存在，但是是目录，默认到这个路径的首页上
+                    request.path += "/";
+                    request.path += HOME_PAGE;
+                }
+                // 如果请求的是可执行程序，特殊处理
+                if ((file_state.st_mode & S_IXUSR) || (file_state.st_mode & S_IXGRP) || (file_state.st_mode & S_IXOTH))
+                {
+                    // 请求可执行程序
+                }
+            }
+            else
+            {
+                // 资源不存在，404错误
+                response.status_code = NOT_FOUND;
+                LOG(WARNING, request.path + "not found");
+                goto END;
+            }
         }
         else
         {
             // 非法请求，构建错误响应报文
             LOG(WARNING, "method is not right");
             response.status_code = NOT_FOUND;
+            goto END;
         }
+    END:
     }
     // 发送响应
     void SendRequest() {}
