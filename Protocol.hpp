@@ -10,6 +10,7 @@
 #include <sstream>
 #include <unordered_map>
 #include <sys/stat.h>
+#include <algorithm>
 
 #define SEP ": " // HTTP请求报文分隔符
 // HTTP响应状态码
@@ -37,6 +38,8 @@ struct HttpRequest
     int content_length = 0;                                   // 请求正文长度
     std::string path;                                         // 请求资源路径
     std::string parameter;                                    // GET请求携带的参数
+
+    bool cgi = false; // 请求是否带参，带参的话服务器调用CGI程序处理
 };
 // 响应报文信息
 struct HttpResponse
@@ -88,6 +91,9 @@ private:
         std::stringstream str(line);
         str >> request.method >> request.uri >> request.version;
         // LOG(INFO, request.method + ":" + request.uri + ":" + request.version);
+        // 方法转大写
+        auto &method = request.method;
+        std::transform(method.begin(), method.end(), method.begin(), ::toupper);
     }
     // 解析请求报头
     void ParseRequestHeads()
@@ -140,6 +146,7 @@ private:
             }
         }
     }
+    int ProcessNoCGI() { return 0; }
 
 public:
     EndPoint(int _sock)
@@ -175,11 +182,21 @@ public:
                     // 带参 切分字符串，左边为路径，右边为参数
                     Util::cutString(request.uri, "?", request.path, request.parameter);
                     // LOG(INFO, request.path + "------" + request.parameter);
+                    request.cgi = true;
                 }
                 else
                 {
                     request.path = request.uri;
                 }
+            }
+            else if (method == "POST")
+            {
+                // POST方法,带参数，服务器请求CGI处理数据
+                request.cgi = true;
+            }
+            else
+            {
+                // 其他方法，先不处理
             }
             // 重新修改路径，让其指向WEB服务器根路径wwwroot/ 默认首页index.hmtl
             request.path.insert(0, WEB_ROOT);
@@ -203,7 +220,8 @@ public:
                 // 如果请求的是可执行程序，特殊处理
                 if ((file_state.st_mode & S_IXUSR) || (file_state.st_mode & S_IXGRP) || (file_state.st_mode & S_IXOTH))
                 {
-                    // 请求可执行程序
+                    // 请求可执行程序,服务器调用可程序
+                    request.cgi = true;
                 }
             }
             else
@@ -221,7 +239,17 @@ public:
             response.status_code = NOT_FOUND;
             goto END;
         }
+        if (request.cgi == true)
+        {
+            // 以CGI的方式处理请求
+        }
+        else
+        {
+            // 非CGI方式处理数据，GET方法不带参数，文本网页返回
+            ProcessNoCGI();
+        }
     END:
+        return;
     }
     // 发送响应
     void SendRequest() {}
