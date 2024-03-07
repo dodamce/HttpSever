@@ -11,6 +11,8 @@
 #include <unordered_map>
 #include <sys/stat.h>
 #include <algorithm>
+#include <sys/sendfile.h>
+#include <fcntl.h>
 
 #define SEP ": " // HTTP请求报文分隔符
 // HTTP响应状态码
@@ -20,6 +22,28 @@
 #define WEB_ROOT "wwwroot"
 // 路径首页
 #define HOME_PAGE "index.html"
+// HTTP版本
+#define HTTP_VERSION "HTTP/1.0"
+// 行分割符
+#define LINE_END "\r\n"
+
+// 响应状态码描述映射
+static std::string StatusMap(int code)
+{
+    std::string ret;
+    switch (code)
+    {
+    case 200:
+        ret = "OK";
+        break;
+    case 404:
+        ret = "Not Found";
+        break;
+    default:
+        break;
+    }
+    return ret;
+}
 
 // 协议读取分析工作(每个线程工作任务)
 // 请求报文信息
@@ -46,10 +70,12 @@ struct HttpResponse
 {
     std::string res_line;               // 状态行
     std::vector<std::string> res_heads; // 响应报头
-    std::string blank;                  // 空行
+    std::string blank = LINE_END;       // 空行
     std::string res_body;               // 响应正文
 
-    int status_code = 0; // 响应状态码
+    int status_code = OK; // 响应状态码
+    int fd = -1;          // 响应文件的文件描述符
+    size_t size;          // 客户端访问目标文件的大小
 };
 // 对端业务逻辑类,读取请求，分析请求，构建响应。基本IO通信
 class EndPoint
@@ -146,7 +172,27 @@ private:
             }
         }
     }
-    int ProcessNoCGI() { return 0; }
+    int ProcessNoCGI()
+    {
+        // 构建响应报文的响应正文,只读方式
+        response.fd = open(request.path.c_str(), O_RDONLY);
+        if (response.fd > 0)
+        {
+            // 构建响应行
+            auto &res_line = response.res_line;
+            res_line = HTTP_VERSION; // HTTP版本
+            res_line += " ";
+            res_line += std::to_string(response.status_code); // 状态码
+            res_line += " ";
+            res_line += StatusMap(response.status_code); // 状态码描述
+            res_line += LINE_END;
+            // 构建响应报头
+            // TODO
+            // 空行初始化为LINE_END
+            return OK;
+        }
+        return NOT_FOUND;
+    }
 
 public:
     EndPoint(int _sock)
@@ -168,7 +214,7 @@ public:
         RecvReqBody();
     }
     // 构建响应
-    void BuildRequest()
+    void BuildResponse()
     {
         // 只处理POST/GET请求
         std::string &method = request.method;
@@ -197,6 +243,7 @@ public:
             else
             {
                 // 其他方法，先不处理
+                // TODO
             }
             // 重新修改路径，让其指向WEB服务器根路径wwwroot/ 默认首页index.hmtl
             request.path.insert(0, WEB_ROOT);
@@ -216,6 +263,8 @@ public:
                     // 请求路径存在，但是是目录，默认到这个路径的首页上
                     request.path += "/";
                     request.path += HOME_PAGE;
+                    // 获取新文件属性，更新属性信息
+                    stat(request.path.c_str(), &file_state);
                 }
                 // 如果请求的是可执行程序，特殊处理
                 if ((file_state.st_mode & S_IXUSR) || (file_state.st_mode & S_IXGRP) || (file_state.st_mode & S_IXOTH))
@@ -223,6 +272,7 @@ public:
                     // 请求可执行程序,服务器调用可程序
                     request.cgi = true;
                 }
+                response.size = file_state.st_size;
             }
             else
             {
@@ -231,6 +281,7 @@ public:
                 LOG(WARNING, request.path + "not found");
                 goto END;
             }
+            LOG(INFO, "DEBUG: " + request.path);
         }
         else
         {
@@ -245,14 +296,29 @@ public:
         }
         else
         {
-            // 非CGI方式处理数据，GET方法不带参数，文本网页返回
-            ProcessNoCGI();
+            // 非CGI方式处理数据，GET方法不带参数，构建HTTP响应，文本网页返回
+            response.status_code = ProcessNoCGI();
         }
     END:
-        return;
+        if (response.status_code != OK)
+        {
+            // 错误
+        }
     }
     // 发送响应
-    void SendRequest() {}
+    void SendResponse()
+    {
+        send(sock, response.res_line.c_str(), response.res_line.size(), 0); // 阻塞发送
+        for (auto &item : response.res_heads)
+        {
+            send(sock, item.c_str(), item.size(), 0); // 记得带LINE_END
+        }
+        send(sock, response.blank.c_str(), response.blank.size(), 0);
+        // 发送正文
+        sendfile(sock, response.fd, nullptr, response.size);
+        // 关闭文件
+        close(response.fd);
+    }
 };
 // 线程工作入口
 class Entrance
@@ -266,8 +332,8 @@ public:
         delete (int *)_sock;
         EndPoint *endpoint = new EndPoint(sock);
         endpoint->ReadRequest();
-        endpoint->BuildRequest();
-        endpoint->SendRequest();
+        endpoint->BuildResponse();
+        endpoint->SendResponse();
         delete endpoint;
         LOG(INFO, "http request hander end");
         return nullptr;
