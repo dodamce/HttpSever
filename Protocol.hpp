@@ -44,6 +44,26 @@ static std::string StatusMap(int code)
     }
     return ret;
 }
+// 文件类型与HTTP Content-Type映射
+static std::string SuffixMap(const std::string &suffix)
+{
+    static std::unordered_map<std::string, std::string> suffixMap = {
+        {".html", "text/html"},
+        {".css", "text/css"},
+        {".js", "application/x-javascript"},
+        {".png", "image/png"},
+        {".jpg", "image/jpeg"},
+        {".xml", "application/xml"}
+        // TODO 其余后续添加
+    };
+    auto pos = suffixMap.find(suffix);
+    if (pos != suffixMap.end())
+    {
+
+        return pos->second;
+    }
+    return "text/html"; // 默认当做html网页处理
+}
 
 // 协议读取分析工作(每个线程工作任务)
 // 请求报文信息
@@ -63,7 +83,8 @@ struct HttpRequest
     std::string path;                                         // 请求资源路径
     std::string parameter;                                    // GET请求携带的参数
 
-    bool cgi = false; // 请求是否带参，带参的话服务器调用CGI程序处理
+    bool cgi = false;   // 请求是否带参，带参的话服务器调用CGI程序处理
+    std::string suffix; // 请求资源后缀
 };
 // 响应报文信息
 struct HttpResponse
@@ -186,9 +207,17 @@ private:
             res_line += " ";
             res_line += StatusMap(response.status_code); // 状态码描述
             res_line += LINE_END;
-            // 构建响应报头
-            // TODO
             // 空行初始化为LINE_END
+            // 构建响应报头
+            std::string content_length = "Content-Length: ";
+            content_length += std::to_string(response.size);
+            content_length += LINE_END;
+            // Content-Type映射表，这里只处理html，css，js，png
+            std::string content_type = "Content-Type: ";
+            content_type += SuffixMap(request.suffix);
+            content_type += LINE_END;
+            response.res_heads.push_back(content_length);
+            response.res_heads.push_back(content_type);
             return OK;
         }
         return NOT_FOUND;
@@ -273,6 +302,16 @@ public:
                     request.cgi = true;
                 }
                 response.size = file_state.st_size;
+                // 资源存在确认请求后缀
+                size_t found = request.path.rfind(".");
+                if (found == std::string::npos)
+                {
+                    request.suffix = ".html"; // 默认html文件
+                }
+                else
+                {
+                    request.suffix = request.path.substr(found);
+                }
             }
             else
             {
