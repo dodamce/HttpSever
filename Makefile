@@ -12,12 +12,12 @@ $(bin):$(src)
 	$(cc) -o $@ $^ $(LD_FLAGS)
 $(cgi):CGI/cgi.cpp
 	$(cc) -o $@ $^
-	mv $(cgi) CGI/
+	mv $(cgi) wwwroot/
 
 .PHONY:clean
 clean:
 	rm -rf $(bin) 
-	rm -rf CGI/$(cgi)
+	rm -rf wwwroot/$(cgi)
 	rm -rf output
 
 .PHONY:output # 发布软件
@@ -25,4 +25,4 @@ output:
 	mkdir -p output
 	cp $(bin) output
 	cp -rf wwwroot/ output/
-	cp CGI/$(cgi) output/wwwroot/
+	cp wwwroot/$(cgi) output/wwwroot/
