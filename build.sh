@@ -3,4 +3,5 @@ make clean
 make
 rm -rf ./HttpSever
 rm -rf ./wwwroot/cgi
-./output/HttpSever 8080
+cd output
+./HttpSever 8080
