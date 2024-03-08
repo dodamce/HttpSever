@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <sys/sendfile.h>
 #include <fcntl.h>
+#include <sys/wait.h>
 
 #define SEP ": " // HTTP请求报文分隔符
 // HTTP响应状态码
@@ -222,6 +223,55 @@ private:
         }
         return NOT_FOUND;
     }
+    int ProcessCGI()
+    {
+        LOG(INFO, "DEBUG: use cgi method");
+        auto &bin = request.path;
+        // 使用匿名管道实现子进程和CGI程序通信,站在父进程角度进行input output
+        // 父进程通过input来读取CGI程序数据，output来向CGI程序数据。
+        // 子进程通过向input写入数据，output拿取数据
+        int input[2] = {0};
+        int output[2] = {0};
+        if (pipe(input) < 0)
+        {
+            LOG(ERROR, "pip input error!");
+            return NOT_FOUND;
+        }
+        if (pipe(output) < 0)
+        {
+            LOG(ERROR, "pip output error!");
+            return NOT_FOUND;
+        }
+        // 线程进入CGI内部，创建子进程执行CGI程序
+        pid_t pid = fork();
+        if (pid == 0) // 子进程
+        {
+            close(input[0]);
+            close(output[1]);
+            // 重定向，1 input[1]写 ; 0 output[0]读取
+            dup2(input[1], 1);
+            dup2(output[0], 0);
+            //  执行目标程序,目标子进程通过使用重定向原则，让替换后的进程读取管道数据向标准输入读取，写入数据向标准输出写入即可。在进程替换前进行重定向
+            execl(bin.c_str(), bin.c_str(), nullptr);
+            // 未替换成功
+            LOG(ERROR, "execl error!");
+            exit(1);
+        }
+        else if (pid < 0) // 创建子进程失败
+        {
+            LOG(ERROR, "thread fork error!");
+            return NOT_FOUND;
+        }
+        else // 父进程
+        {
+            close(input[1]);
+            close(output[0]);
+            waitpid(pid, nullptr, 0); // 阻塞进程等待，返回码不关注设为nullptr
+            close(input[0]);
+            close(output[1]);
+        }
+        return OK;
+    }
 
 public:
     EndPoint(int _sock)
@@ -317,7 +367,7 @@ public:
             {
                 // 资源不存在，404错误
                 response.status_code = NOT_FOUND;
-                LOG(WARNING, request.path + "not found");
+                LOG(WARNING, request.path + " not found");
                 goto END;
             }
             LOG(INFO, "DEBUG: " + request.path);
@@ -332,6 +382,7 @@ public:
         if (request.cgi == true)
         {
             // 以CGI的方式处理请求
+            response.status_code = ProcessCGI();
         }
         else
         {
