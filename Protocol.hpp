@@ -226,9 +226,15 @@ private:
     int ProcessCGI()
     {
         LOG(INFO, "DEBUG: use cgi method");
-        auto &bin = request.path;
+        // 父进程数据
+        std::string &parameter = request.parameter; // GET方法,环境变量传递信息效率高
+        std::string &req_body = request.req_body;   // POST方法,管道传递信息
+        std::string &method = request.method;
+        std::string &bin = request.path;
+        std::string parameter_env; // 环境变量传参
+        std::string method_env;    // 请求方法环境变量，让子进程知道怎么那数据
         // 使用匿名管道实现子进程和CGI程序通信,站在父进程角度进行input output
-        // 父进程通过input来读取CGI程序数据，output来向CGI程序数据。
+        // 父进程通过input来读取CGI程序数据，output来向CGI程序提供数据。
         // 子进程通过向input写入数据，output拿取数据
         int input[2] = {0};
         int output[2] = {0};
@@ -251,6 +257,14 @@ private:
             // 重定向，1 input[1]写 ; 0 output[0]读取
             dup2(input[1], 1);
             dup2(output[0], 0);
+            // 方法也给子进程
+            method_env = "METHOD=" + method;
+            putenv((char *)method_env.c_str());
+            if (method == "GET")
+            {
+                parameter_env = "Get_Parameter=" + parameter;
+                putenv((char *)parameter_env.c_str());
+            }
             //  执行目标程序,目标子进程通过使用重定向原则，让替换后的进程读取管道数据向标准输入读取，写入数据向标准输出写入即可。在进程替换前进行重定向
             execl(bin.c_str(), bin.c_str(), nullptr);
             // 未替换成功
@@ -266,6 +280,16 @@ private:
         {
             close(input[1]);
             close(output[0]);
+            if (method == "POST") // 数据在body上,写入管道
+            {
+                const char *start = req_body.c_str();
+                size_t total = 0; // 一共写入了多少字节
+                size_t size = 0;  // 本次写入内容大小
+                while ((size = write(output[1], start + total, req_body.size() - total)) > 0)
+                {
+                    total += size;
+                }
+            }
             waitpid(pid, nullptr, 0); // 阻塞进程等待，返回码不关注设为nullptr
             close(input[0]);
             close(output[1]);
@@ -393,6 +417,7 @@ public:
         if (response.status_code != OK)
         {
             // 错误
+            // TODO
         }
     }
     // 发送响应
