@@ -254,17 +254,18 @@ private:
         {
             close(input[0]);
             close(output[1]);
-            // 重定向，1 input[1]写 ; 0 output[0]读取
-            dup2(input[1], 1);
-            dup2(output[0], 0);
             // 方法也给子进程
             method_env = "METHOD=" + method;
             putenv((char *)method_env.c_str());
+            // LOG(INFO, "DEBUG: put method env " + method_env);
             if (method == "GET")
             {
                 parameter_env = "Get_Parameter=" + parameter;
                 putenv((char *)parameter_env.c_str());
             }
+            // 重定向，1 input[1]写 ; 0 output[0]读取
+            dup2(input[1], 1);
+            dup2(output[0], 0);
             //  执行目标程序,目标子进程通过使用重定向原则，让替换后的进程读取管道数据向标准输入读取，写入数据向标准输出写入即可。在进程替换前进行重定向
             execl(bin.c_str(), bin.c_str(), nullptr);
             // 未替换成功
@@ -342,6 +343,7 @@ public:
             {
                 // POST方法,带参数，服务器请求CGI处理数据
                 request.cgi = true;
+                request.path = request.uri;
             }
             else
             {
