@@ -8,4 +8,4 @@ $(bin):$(src)
 
 .PHONY:clean
 clean:
-	rm $(bin)
+	rm  -rf $(bin)
