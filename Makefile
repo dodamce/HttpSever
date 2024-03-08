@@ -13,6 +13,7 @@ $(bin):$(src)
 $(cgi):CGI/cgi.cpp
 	$(cc) -o $@ $^
 	mv $(cgi) wwwroot/
+	make output
 
 .PHONY:clean
 clean:
