@@ -11,7 +11,7 @@ BIN:
 $(bin):$(src)
 	$(cc) -o $@ $^ $(LD_FLAGS)
 $(cgi):CGI/cgi.cpp
-	$(cc) -o $@ $^
+	$(cc) -o $@ $^ $(LD_FLAGS)
 	mv $(cgi) wwwroot/
 	make output
 
