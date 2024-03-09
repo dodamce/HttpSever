@@ -234,6 +234,7 @@ private:
         std::string parameter_env;      // 环境变量传参
         std::string method_env;         // 请求方法环境变量，让子进程知道怎么那数据
         std::string content_length_env; // POST方法传递参数长度
+        int cgi_status = OK;            // 函数运行状态
         // 使用匿名管道实现子进程和CGI程序通信,站在父进程角度进行input output
         // 父进程通过input来读取CGI程序数据，output来向CGI程序提供数据。
         // 子进程通过向input写入数据，output拿取数据
@@ -242,12 +243,14 @@ private:
         if (pipe(input) < 0)
         {
             LOG(ERROR, "pip input error!");
-            return NOT_FOUND;
+            cgi_status = NOT_FOUND;
+            return cgi_status;
         }
         if (pipe(output) < 0)
         {
             LOG(ERROR, "pip output error!");
-            return NOT_FOUND;
+            cgi_status = NOT_FOUND;
+            return cgi_status;
         }
         // 线程进入CGI内部，创建子进程执行CGI程序
         pid_t pid = fork();
@@ -301,11 +304,39 @@ private:
                     total += size;
                 }
             }
-            waitpid(pid, nullptr, 0); // 阻塞进程等待，返回码不关注设为nullptr
+            // 读cgi发送回的数据
+            char ch = 0;
+            while (read(input[0], &ch, 1) > 0)
+            {
+                // 构建响应正文发送给客户端
+                response.res_body += ch;
+            }
+            int status = 0;                       // 子进程运行状态
+            pid_t ret = waitpid(pid, &status, 0); // 阻塞进程等待，返回码不关注设为nullptr
+            if (ret == pid)
+            {
+                // 等待成功，子进程可能出现错误，判断子进程运行情况
+                if (WIFEXITED(status))
+                {
+                    // 正常退出，且退出码为0，说明正确运行
+                    if (WEXITSTATUS(status) == 0)
+                    {
+                        cgi_status = OK;
+                    }
+                    else
+                    {
+                        cgi_status = NOT_FOUND;
+                    }
+                }
+                else
+                {
+                    cgi_status = NOT_FOUND;
+                }
+            }
             close(input[0]);
             close(output[1]);
         }
-        return OK;
+        return cgi_status;
     }
 
 public:
