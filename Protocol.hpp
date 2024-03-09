@@ -231,8 +231,9 @@ private:
         std::string &req_body = request.req_body;   // POST方法,管道传递信息
         std::string &method = request.method;
         std::string &bin = request.path;
-        std::string parameter_env; // 环境变量传参
-        std::string method_env;    // 请求方法环境变量，让子进程知道怎么那数据
+        std::string parameter_env;      // 环境变量传参
+        std::string method_env;         // 请求方法环境变量，让子进程知道怎么那数据
+        std::string content_length_env; // POST方法传递参数长度
         // 使用匿名管道实现子进程和CGI程序通信,站在父进程角度进行input output
         // 父进程通过input来读取CGI程序数据，output来向CGI程序提供数据。
         // 子进程通过向input写入数据，output拿取数据
@@ -263,6 +264,15 @@ private:
                 parameter_env = "Get_Parameter=" + parameter;
                 putenv((char *)parameter_env.c_str());
             }
+            else if (method == "POST")
+            {
+                content_length_env = "Content_Length=" + std::to_string(request.content_length); // 将参数长度写入环境变量
+                putenv((char *)content_length_env.c_str());
+            }
+            else
+            {
+                // TODO 其余方法先不处理
+            }
             // 重定向，1 input[1]写 ; 0 output[0]读取
             dup2(input[1], 1);
             dup2(output[0], 0);
@@ -286,7 +296,7 @@ private:
                 const char *start = req_body.c_str();
                 size_t total = 0; // 一共写入了多少字节
                 size_t size = 0;  // 本次写入内容大小
-                while ((size = write(output[1], start + total, req_body.size() - total)) > 0)
+                while (total < req_body.size() && (size = write(output[1], start + total, req_body.size() - total)) > 0)
                 {
                     total += size;
                 }
