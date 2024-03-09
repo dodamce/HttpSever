@@ -27,6 +27,8 @@
 #define HTTP_VERSION "HTTP/1.0"
 // 行分割符
 #define LINE_END "\r\n"
+// 404页面路径
+#define PAGE_404 "./wwwroot/404.html"
 
 // 响应状态码描述映射
 static std::string StatusMap(int code)
@@ -86,6 +88,7 @@ struct HttpRequest
 
     bool cgi = false;   // 请求是否带参，带参的话服务器调用CGI程序处理
     std::string suffix; // 请求资源后缀
+    size_t size;        // 请求资源的大小
 };
 // 响应报文信息
 struct HttpResponse
@@ -97,7 +100,6 @@ struct HttpResponse
 
     int status_code = OK; // 响应状态码
     int fd = -1;          // 响应文件的文件描述符
-    size_t size;          // 客户端访问目标文件的大小
 };
 // 对端业务逻辑类,读取请求，分析请求，构建响应。基本IO通信
 class EndPoint
@@ -193,35 +195,6 @@ private:
                 }
             }
         }
-    }
-    int ProcessNoCGI()
-    {
-        // 构建响应报文的响应正文,只读方式
-        response.fd = open(request.path.c_str(), O_RDONLY);
-        if (response.fd > 0)
-        {
-            // 构建响应行
-            auto &res_line = response.res_line;
-            res_line = HTTP_VERSION; // HTTP版本
-            res_line += " ";
-            res_line += std::to_string(response.status_code); // 状态码
-            res_line += " ";
-            res_line += StatusMap(response.status_code); // 状态码描述
-            res_line += LINE_END;
-            // 空行初始化为LINE_END
-            // 构建响应报头
-            std::string content_length = "Content-Length: ";
-            content_length += std::to_string(response.size);
-            content_length += LINE_END;
-            // Content-Type映射表，这里只处理html，css，js，png
-            std::string content_type = "Content-Type: ";
-            content_type += SuffixMap(request.suffix);
-            content_type += LINE_END;
-            response.res_heads.push_back(content_length);
-            response.res_heads.push_back(content_type);
-            return OK;
-        }
-        return NOT_FOUND;
     }
     int ProcessCGI()
     {
@@ -338,6 +311,84 @@ private:
         }
         return cgi_status;
     }
+    int ProcessNoCGI()
+    {
+        // 构建响应报文的响应正文,只读方式
+        response.fd = open(request.path.c_str(), O_RDONLY);
+        if (response.fd > 0)
+        {
+            return OK;
+        }
+        return NOT_FOUND;
+    }
+
+    void BuildError(std::string page_msg)
+    {
+        request.cgi = false; // 出差错，正常网页返回
+        response.fd = open(page_msg.c_str(), O_RDONLY);
+        if (response.fd > 0)
+        {
+            // 构建响应报头
+            struct stat page;
+            stat(page_msg.c_str(), &page);
+            std::string msg = "Content-Type: text/html";
+            msg += LINE_END;
+            response.res_heads.push_back(msg);
+            msg = "Content-Length: " + std::to_string(page.st_size);
+            msg += LINE_END;
+            response.res_heads.push_back(msg);
+            request.size = page.st_size;
+        }
+    }
+
+    void BuildOK()
+    {
+        // 构建响应报头
+        std::string msg = "Content-Type: ";
+        msg += SuffixMap(request.suffix);
+        msg += LINE_END;
+        response.res_heads.push_back(msg);
+        msg = "Content-Length: ";
+        // 判断Content-Length位置
+        if (request.cgi == true)
+        {
+            msg += std::to_string(response.res_body.size());
+        }
+        else
+        {
+            msg += std::to_string(request.size);
+        }
+        msg += LINE_END;
+        response.res_heads.push_back(msg);
+    }
+
+    void BuildResponseHelper()
+    {
+        // 根据不同错误构建响应
+        // 相应状态行填充
+        std::string& res_line = response.res_line;
+        int status_code = response.status_code;
+        res_line += HTTP_VERSION;
+        res_line += " ";
+        res_line += std::to_string(status_code);
+        res_line += " ";
+        res_line += StatusMap(status_code);
+        res_line += LINE_END;
+        // 构建响应报头
+        switch (status_code)
+        {
+        case OK:
+            BuildOK();
+            break;
+        case NOT_FOUND:
+            // 返回404页面
+            BuildError(PAGE_404);
+            break;
+        // case 500:
+        default:
+            break;
+        }
+    }
 
 public:
     EndPoint(int _sock)
@@ -418,7 +469,7 @@ public:
                     // 请求可执行程序,服务器调用可程序
                     request.cgi = true;
                 }
-                response.size = file_state.st_size;
+                request.size = file_state.st_size;
                 // 资源存在确认请求后缀
                 size_t found = request.path.rfind(".");
                 if (found == std::string::npos)
@@ -457,11 +508,7 @@ public:
             response.status_code = ProcessNoCGI();
         }
     END:
-        if (response.status_code != OK)
-        {
-            // 错误
-            // TODO
-        }
+        BuildResponseHelper();
     }
     // 发送响应
     void SendResponse()
@@ -472,10 +519,24 @@ public:
             send(sock, item.c_str(), item.size(), 0); // 记得带LINE_END
         }
         send(sock, response.blank.c_str(), response.blank.size(), 0);
-        // 发送正文
-        sendfile(sock, response.fd, nullptr, response.size);
-        // 关闭文件
-        close(response.fd);
+        if (request.cgi == true) // cgi程序响应正文在cgi返回给服务器的数据在response body上，发出去即可
+        {
+            std::string &res_body = response.res_body;
+            size_t size = 0;
+            size_t total = 0;
+            const char *start = res_body.c_str();
+            while (total < res_body.size() && (size = send(sock, start + total, res_body.size() - total, 0) > 0))
+            {
+                total += size;
+            }
+        }
+        else // 正常报文响应正文在打开的文件上
+        {
+            // 发送正文
+            sendfile(sock, response.fd, nullptr, request.size);
+            // 关闭文件
+            close(response.fd);
+        }
     }
 };
 // 线程工作入口
