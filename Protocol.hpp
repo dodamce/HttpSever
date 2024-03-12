@@ -366,7 +366,7 @@ private:
     {
         // 根据不同错误构建响应
         // 相应状态行填充
-        std::string& res_line = response.res_line;
+        std::string &res_line = response.res_line;
         int status_code = response.status_code;
         res_line += HTTP_VERSION;
         res_line += " ";
@@ -525,7 +525,7 @@ public:
             size_t size = 0;
             size_t total = 0;
             const char *start = res_body.c_str();
-            while (total < res_body.size() && (size = send(sock, start + total, res_body.size() - total, 0) > 0))
+            while (total < res_body.size() && (size = send(sock, start + total, res_body.size() - total, 0)) > 0)
             {
                 total += size;
             }
