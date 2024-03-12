@@ -18,7 +18,9 @@
 #define SEP ": " // HTTP请求报文分隔符
 // HTTP响应状态码
 #define OK 200
+#define BAD_REQUEST 400
 #define NOT_FOUND 404
+#define SERVER_ERROR 500
 // WEB根目录
 #define WEB_ROOT "wwwroot"
 // 路径首页
@@ -216,13 +218,13 @@ private:
         if (pipe(input) < 0)
         {
             LOG(ERROR, "pip input error!");
-            cgi_status = NOT_FOUND;
+            cgi_status = SERVER_ERROR;
             return cgi_status;
         }
         if (pipe(output) < 0)
         {
             LOG(ERROR, "pip output error!");
-            cgi_status = NOT_FOUND;
+            cgi_status = SERVER_ERROR;
             return cgi_status;
         }
         // 线程进入CGI内部，创建子进程执行CGI程序
@@ -298,12 +300,12 @@ private:
                     }
                     else
                     {
-                        cgi_status = NOT_FOUND;
+                        cgi_status = BAD_REQUEST;
                     }
                 }
                 else
                 {
-                    cgi_status = NOT_FOUND;
+                    cgi_status = SERVER_ERROR;
                 }
             }
             close(input[0]);
@@ -384,7 +386,12 @@ private:
             // 返回404页面
             BuildError(PAGE_404);
             break;
-        // case 500:
+        case BAD_REQUEST: // 其余错误也返回404页面，这里不做处理
+            BuildError(PAGE_404);
+            break;
+        case SERVER_ERROR:
+            BuildError(PAGE_404);
+            break;
         default:
             break;
         }
@@ -436,11 +443,6 @@ public:
                 // POST方法,带参数，服务器请求CGI处理数据
                 request.cgi = true;
                 request.path = request.uri;
-            }
-            else
-            {
-                // 其他方法，先不处理
-                // TODO
             }
             // 重新修改路径，让其指向WEB服务器根路径wwwroot/ 默认首页index.hmtl
             request.path.insert(0, WEB_ROOT);
@@ -494,7 +496,7 @@ public:
         {
             // 非法请求，构建错误响应报文
             LOG(WARNING, "method is not right");
-            response.status_code = NOT_FOUND;
+            response.status_code = BAD_REQUEST;
             goto END;
         }
         if (request.cgi == true)
