@@ -110,31 +110,48 @@ private:
     int sock;
     HttpRequest request;
     HttpResponse response;
-
+    bool stop = false; // 标记服务器读取是否正确,stop==true代表出错
     // 读取请求行
-    void RecvRequestLine()
+    bool RecvRequestLine()
     {
-        Util::readLine(sock, request.req_line);
-        request.req_line.resize(request.req_line.size() - 1); // 删除\n
-        // LOG(INFO, request.req_line);
+        if (Util::readLine(sock, request.req_line) > 0)
+        {
+            request.req_line.resize(request.req_line.size() - 1); // 删除\n
+            // LOG(INFO, request.req_line);
+        }
+        else
+        {
+            // 读取出错，关闭链接
+            stop = true;
+        }
+        return stop;
     }
     // 读取请求报头
-    void RecvRequestHeads()
+    bool RecvRequestHeads()
     {
         std::string line;
         while (true)
         {
             line.clear();
-            Util::readLine(sock, line);
-            if (line == "\n")
+            if (Util::readLine(sock, line) > 0)
             {
-                request.blank = line;
-                break; // line==\n时读取到空行
+                if (line == "\n")
+                {
+                    request.blank = line;
+                    break; // line==\n时读取到空行
+                }
+                line.resize(line.size() - 1); // 删除最后一个字符\n
+                request.req_heads.push_back(line);
+                // LOG(INFO, line);
             }
-            line.resize(line.size() - 1); // 删除最后一个字符\n
-            request.req_heads.push_back(line);
-            // LOG(INFO, line);
+            else
+            {
+                // 读取出错
+                stop = true;
+                break;
+            }
         }
+        return stop;
     }
     // 解析请求头
     void ParseRequestLine()
@@ -177,7 +194,7 @@ private:
         return false;
     }
     // 读取正文
-    void RecvReqBody()
+    bool RecvReqBody()
     {
         if (HaveReqBody() == true)
         {
@@ -193,10 +210,12 @@ private:
                 }
                 else
                 {
-                    break; // 出错，先不考虑
+                    stop = true;
+                    break; // 读取出错
                 }
             }
         }
+        return stop;
     }
     int ProcessCGI()
     {
@@ -398,6 +417,10 @@ private:
     }
 
 public:
+    bool Stop()
+    {
+        return stop;
+    }
     EndPoint(int _sock)
     {
         sock = _sock;
@@ -409,12 +432,13 @@ public:
     // 读取，解析请求
     void ReadRequest()
     {
-        RecvRequestLine();
-        RecvRequestHeads();
-        ParseRequestLine();
-        ParseRequestHeads();
-        // 请求正文由Content-length决定
-        RecvReqBody();
+        if ((!RecvRequestLine()) && (!RecvRequestHeads()))
+        {
+            ParseRequestLine();
+            ParseRequestHeads();
+            // 请求正文由Content-length决定
+            RecvReqBody();
+        }
     }
     // 构建响应
     void BuildResponse()
@@ -553,8 +577,16 @@ public:
         delete (int *)_sock;
         EndPoint *endpoint = new EndPoint(sock);
         endpoint->ReadRequest();
-        endpoint->BuildResponse();
-        endpoint->SendResponse();
+        if (endpoint->Stop() != true)
+        {
+            LOG(INFO, "recv success! build request begin");
+            endpoint->BuildResponse();
+            endpoint->SendResponse();
+        }
+        else
+        {
+            LOG(WARNING, "recv error! please try again");
+        }
         delete endpoint;
         LOG(INFO, "http request hander end");
         return nullptr;
