@@ -49,11 +49,11 @@ int main(int argc, char const *argv[])
         std::string key;
         std::string value;
         Util::cutString(left, "=", key, value);
-        cerr << "DEBUG: " << key << ":" << value << endl;
+        // cerr << "DEBUG: " << key << ":" << value << endl;
         std::string key2;
         std::string value2;
         Util::cutString(right, "=", key2, value2);
-        cerr << "DEBUG: " << key2 << ":" << value2 << endl;
+        // cerr << "DEBUG: " << key2 << ":" << value2 << endl;
 
         // 重定向标准输出，直接向标准输出打印字符，父进程可以通过read读取
         cout << "DEBUG CGI send: " << key << ":" << value << endl;
