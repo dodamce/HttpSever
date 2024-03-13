@@ -2,6 +2,8 @@
 #include "./TcpSever/TcpSever.hpp"
 #include "Protocol.hpp"
 #include "./log/log.hpp"
+#include <signal.h>
+#include <pthread.h>
 #define PORT 8080
 
 class HttpSever
@@ -12,6 +14,8 @@ private:
     bool states; // 标记服务器运行状态
     void InitSever()
     {
+        // 信号SIGPIPE需要进行忽略，防止服务器写入管道时失败服务器崩溃
+        signal(SIGPIPE, SIG_IGN);
         tcp_sever = TcpSever::GetInstance(port);
     }
 
