@@ -4,6 +4,8 @@
 #include "./log/log.hpp"
 #include <signal.h>
 #include <pthread.h>
+#include "./ThreadPool/task.hpp"
+#include "./ThreadPool/threadpool.hpp"
 #define PORT 8080
 
 class HttpSever
@@ -12,6 +14,7 @@ private:
     int port;
     TcpSever *tcp_sever;
     bool states; // 标记服务器运行状态
+    ThreadPool threadpool;
     void InitSever()
     {
         // 信号SIGPIPE需要进行忽略，防止服务器写入管道时失败服务器崩溃
@@ -44,9 +47,9 @@ public:
             }
             LOG(INFO, "get a new link");
             int *_sock = new int(sock);
-            pthread_t tid = 0;
-            pthread_create(&tid, nullptr, Entrance::HanderReq, _sock);
-            pthread_detach(tid); // 线程分离
+            // 构建任务
+            Task task(sock, );
+            threadpool.push_task(task);
         }
     }
 };
