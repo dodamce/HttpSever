@@ -4,11 +4,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>文档测试</title>
+    <title>表单测试</title>
 </head>
 
 <body>
-    Hello world
+
+    <h2>HTML 表单</h2>
+
+    <form action="/cgi" method="POST">
+        <label for="fname">账号:</label><br>
+        <input type="text" id="fname" name="id" value="example"><br>
+        <label for="lname">密码:</label><br>
+        <input type="text" id="lname" name="key" value="..."><br><br>
+        <input type="submit" value="提交">
+    </form>
+    <p>如果点击提交数据会传递给服务器cgi程序，服务器会把cgi处理的数据返回页面上</p>
 </body>
 
 </html>
