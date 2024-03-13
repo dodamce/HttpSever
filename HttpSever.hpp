@@ -48,7 +48,7 @@ public:
             LOG(INFO, "get a new link");
             int *_sock = new int(sock);
             // 构建任务
-            Task task(sock, );
+            Task task(sock);
             threadpool.push_task(task);
         }
     }

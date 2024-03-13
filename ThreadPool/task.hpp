@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include "../Protocol.hpp"
 
 // 设计线程任务队列
 class Task
@@ -10,10 +11,9 @@ private:
     CallBack callback; // 设置回调
 public:
     Task() {}
-    Task(int _sock, CallBack _callback)
+    Task(int _sock)
     {
         sock = _sock;
-        callback = _callback;
     }
     void ProcessOn()
     {

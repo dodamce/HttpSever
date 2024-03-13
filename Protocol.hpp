@@ -566,11 +566,15 @@ public:
     }
 };
 // 线程工作入口
-class Entrance
+class CallBack
 {
 public:
+    void operator()(int sock)//仿函数,线程回调函数通过(sock)调用HanderReq(sock);
+    {
+        HanderReq(sock);
+    }
     // 处理HTTP请求
-    static void *HanderReq(void *_sock)
+    static void HanderReq(int _sock)
     {
         LOG(INFO, "http request hander begin");
         int sock = *(int *)_sock;
@@ -589,6 +593,5 @@ public:
         }
         delete endpoint;
         LOG(INFO, "http request hander end");
-        return nullptr;
     }
 };
