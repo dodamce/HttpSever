@@ -9,16 +9,16 @@
 
 <body>
 
-    <h2>HTML 表单</h2>
+    <h2>表单计算器演示</h2>
 
     <form action="/cgi" method="POST">
-        <label for="fname">账号:</label><br>
-        <input type="text" id="fname" name="id" value="example"><br>
-        <label for="lname">密码:</label><br>
-        <input type="text" id="lname" name="key" value="..."><br><br>
-        <input type="submit" value="提交">
+        <label for="fname">x:</label><br>
+        <input type="text" id="fname" name="x" value="num1"><br>
+        <label for="lname">y:</label><br>
+        <input type="text" id="lname" name="y" value="num2"><br><br>
+        <input type="submit" value="提交计算">
     </form>
-    <p>如果点击提交数据会传递给服务器cgi程序，服务器会把cgi处理的数据返回页面上</p>
+    <p>如果点击提交数据会传递给服务器cgi程序，服务器会把cgi计算的数据返回页面上</p>
 </body>
 
 </html>

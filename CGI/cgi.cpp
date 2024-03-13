@@ -55,9 +55,22 @@ int main(int argc, char const *argv[])
         Util::cutString(right, "=", key2, value2);
         // cerr << "DEBUG: " << key2 << ":" << value2 << endl;
 
-        // 重定向标准输出，直接向标准输出打印字符，父进程可以通过read读取
+        // 重定向标准输出，直接向标准输出打印字符，父进程可以通过read读取，服务器将数据返回给浏览器，相当于cout直接想浏览器输出内容
         cout << "DEBUG CGI send: " << key << ":" << value << endl;
         cout << "DEBUG CGI send: " << key2 << ":" << value2 << endl;
+        int x = atoi(value.c_str());
+        int y = atoi(value2.c_str());
+        int result = x + y;
+        cout << "<html>";
+        cout << "<head><meta charset=\"UTF-8\"></head>";
+        cout << "<body>";
+        cout << "<h3>" << x << "+" << y << "=" << x + y << "</h3>";
+        cout << "<h3>" << x << "-" << y << "=" << x - y << "</h3>";
+        cout << "<h3>" << x << "*" << y << "=" << x * y << "</h3>";
+        cout << "<h3>" << x << "/" << y << "=" << x / y << "</h3>";
+        cout << "</body>";
+        cout << "</html>";
+        // 返回值为0，表示CGI程序执行成功
     }
     return 0;
 }
