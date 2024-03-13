@@ -577,9 +577,7 @@ public:
     static void HanderReq(int _sock)
     {
         LOG(INFO, "http request hander begin");
-        int sock = *(int *)_sock;
-        delete (int *)_sock;
-        EndPoint *endpoint = new EndPoint(sock);
+        EndPoint *endpoint = new EndPoint(_sock);
         endpoint->ReadRequest();
         if (endpoint->Stop() != true)
         {
