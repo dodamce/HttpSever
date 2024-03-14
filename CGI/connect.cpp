@@ -21,6 +21,6 @@ int main(int argc, char const *argv[])
         cerr << "DEBUG error querying!:" << mysql_error(connect) << endl;
         return 1;
     }
-    mysql_close(connect);
+    mysql_close(connect); 
     return 0;
 }
