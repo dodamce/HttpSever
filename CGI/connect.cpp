@@ -1,6 +1,5 @@
 #include <iostream>
 #include "./include/mysql.h"
-<<<<<<< HEAD
 #include <stdlib.h>
 #include <unistd.h>
 #include <string>
@@ -40,11 +39,6 @@ bool GetParameter(string &parameter)
     return flag;
 }
 bool insert(std::string &sql)
-=======
-#include <string>
-using namespace std;
-int main(int argc, char const *argv[])
->>>>>>> 2b25c257a59062277f96806edb12b98a6f3e83f8
 {
     MYSQL *connect = mysql_init(nullptr);
     mysql_set_character_set(connect, "utf8"); // 设置编码格式，防止乱码
@@ -52,7 +46,6 @@ int main(int argc, char const *argv[])
     if (mysql_real_connect(connect, "127.0.0.1", "dodamce", "000000", "HttpSever", 3306, nullptr, 0) == nullptr)
     {
         cerr << "DEBUG error connecting!:" << mysql_error(connect) << endl;
-<<<<<<< HEAD
         return false;
     }
     cerr << "DEBUG succeed connecting" << endl;
@@ -70,19 +63,5 @@ int main(int argc, char const *argv[])
         // 插入数据库
         // std::string sql = "insert into user (name,passward) values (\'测试\',\'000000\')";
     }
-=======
-        return 1;
-    }
-    cerr << "DEBUG succeed connecting" << endl;
-    std::string sql = "insert into user (name,passward) values (\'测试\',\'000000\')";
-    cout << "DEBUG sql:" << sql << endl;
-    int ret = mysql_query(connect, sql.c_str());
-    if (ret != 0)
-    {
-        cerr << "DEBUG error querying!:" << mysql_error(connect) << endl;
-        return 1;
-    }
-    mysql_close(connect);  
->>>>>>> 2b25c257a59062277f96806edb12b98a6f3e83f8
     return 0;
 }
