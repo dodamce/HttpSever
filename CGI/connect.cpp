@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <string>
 #include "../tool/Util.hpp"
+#include <sstream>
 using namespace std;
 bool GetParameter(string &parameter)
 {
@@ -52,13 +53,60 @@ bool insert(std::string &sql)
     mysql_close(connect);
     return true;
 }
+// 浏览器传参时，中文字符会被编码为 UTF-8 格式，因此服务器需要对 uri 进行 decode 解码。
+//  这个函数会对 uri 进行 decode 解码
+std::string decode_uri(const std::string &uri)
+{
+    std::string result; // 用于保存解码后的 uri
+    // 遍历 uri 中的每个字符
+    for (size_t i = 0; i < uri.size(); i++)
+    {
+        if (uri[i] == '%')
+        { // 如果当前字符是 '%'
+            // 如果当前字符后面还有两个字符，则将这两个字符转换为十进制数
+            if (i + 2 < uri.size())
+            {
+                int value = 0;
+                std::istringstream iss(uri.substr(i + 1, 2));
+                iss >> std::hex >> value;
+                // 将转换后的十进制数转换为对应的字符，并添加到结果中
+                result += static_cast<char>(value);
+                i += 2;
+            }
+            else
+            { // 如果当前字符后面没有两个字符，则将当前字符添加到结果中
+                result += uri[i];
+            }
+        }
+        else
+        {                     // 如果当前字符不是 '%'
+            result += uri[i]; // 直接将当前字符添加到结果中
+        }
+    }
+    return result; // 返回解码后的 uri
+}
 int main(int argc, char const *argv[])
 {
     std::string parameter;
     if (GetParameter(parameter))
     {
         // 数据处理
-        cerr << "DEBUG: " << parameter << endl;
+        // 拆分参数
+        std::string left;
+        std::string right;
+        Util::cutString(parameter, "&", left, right);
+        std::string key;
+        std::string value;
+        Util::cutString(left, "=", key, value);
+        // 对中文名称进行解码
+        key = decode_uri(key);
+        value = decode_uri(value);
+        // cerr << "DEBUG: " << key << ":" << value << endl;
+        std::string key2;
+        std::string value2;
+        Util::cutString(right, "=", key2, value2);
+        // cerr << "DEBUG: " << key2 << ":" << value2 << endl;
+
         // 插入数据库
         // std::string sql = "insert into user (name,passward) values (\'测试\',\'000000\')";
     }
