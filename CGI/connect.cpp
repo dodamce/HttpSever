@@ -49,7 +49,6 @@ bool insert(std::string &sql)
         return false;
     }
     cerr << "DEBUG succeed connecting" << endl;
-    std::string sql = "insert into user (name,passward) values (\'测试\',\'000000\')";
     mysql_close(connect);
     return true;
 }
