@@ -50,6 +50,13 @@ bool insert(std::string &sql)
         return false;
     }
     cerr << "DEBUG succeed connecting" << endl;
+    int ret = mysql_query(connect, sql.c_str());
+    if (ret != 0)
+    {
+        cerr << "DEBUG error query!:" << mysql_error(connect) << endl;
+        return false;
+    }
+    cerr << "DEBUG succeed query" << endl;
     mysql_close(connect);
     return true;
 }
@@ -90,8 +97,7 @@ int main(int argc, char const *argv[])
     std::string parameter;
     if (GetParameter(parameter))
     {
-        // 数据处理
-        // 拆分参数
+        // 数据处理 拆分参数
         std::string left;
         std::string right;
         Util::cutString(parameter, "&", left, right);
@@ -108,7 +114,24 @@ int main(int argc, char const *argv[])
         // cerr << "DEBUG: " << key2 << ":" << value2 << endl;
 
         // 插入数据库
-        // std::string sql = "insert into user (name,passward) values (\'测试\',\'000000\')";
+        std::string sql = "insert into user (name,passward) values (\'";
+        sql += value;
+        sql += "\',\'";
+        sql += value2;
+        sql += "\')";
+        cerr << "DEBUG: sql: " << sql << endl;
+        if (insert(sql))
+        {
+            // 返回注册成功网页
+            cout << "<html>";
+            cout << "<head><meta charset=\"UTF-8\"></head>";
+            cout << "<body>";
+            cout << "<h1>"
+                 << "注册成功"
+                 << "</h1>";
+            cout << "</body>";
+            cout << "</html>";
+        }
     }
     return 0;
 }
