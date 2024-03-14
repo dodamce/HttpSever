@@ -1,18 +1,18 @@
 bin=HttpSever
-cgi=cgi
 cc=g++
 LD_FLAGS=-std=c++11 -lpthread
 src=main.cpp
 cur=$(shell pwd) # 获取当前工作路径
 
-BIN:$(bin) CGI
-.PHONY:BIN
-BIN:
+.PHONY:ALL
+ALL:$(bin) cgi
+
 $(bin):$(src)
 	$(cc) -o $@ $^ $(LD_FLAGS)
-CGI:
-	cd $(curr)/CGI
-	make
+
+cgi:
+	cd ./CGI;\
+	make;\
 	cd -
 
 .PHONY:clean
@@ -23,6 +23,7 @@ clean:
 .PHONY:output # 发布软件
 output:
 	mkdir -p output
-	cp $(bin) output
+	mv $(bin) output
 	cp -rf wwwroot/ output/
-	cp CGI/ output/wwwroot/
+	cp -rf CGI/cgi output/wwwroot/
+	cp -rf CGI/mysql_cgi output/wwwroot/
